@@ -141,13 +141,21 @@ jobs:
 
   release:
     needs: [prepare, linux, windows, windows-test]
-    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.release == 'true' && (needs.linux.result == 'success' || needs.windows.result == 'success') }}
+    # Publish whichever targets passed; a later run for the other target adds
+    # its package to the same tag (gh release upload --clobber below).
+    if: ${{ !cancelled() && needs.prepare.outputs.release == 'true' && (needs.linux.result == 'success' || needs.windows-test.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - if: needs.linux.result == 'success'
+        uses: actions/download-artifact@v4
         with:
+          name: linux-x86_64
           path: dist
-          merge-multiple: true
+      - if: needs.windows-test.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x86_64-ucrt
+          path: dist
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
